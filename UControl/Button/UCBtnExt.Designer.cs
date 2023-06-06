@@ -88,5 +88,12 @@ namespace UControls.UControl.Button
 
         private System.Windows.Forms.Label LB_Tips;
         public System.Windows.Forms.Label LB_Display;
+=======
+            components = new System.ComponentModel.Container();
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+        }
+
+        #endregion
+>>>>>>> 3be97d4351fbf44269a88f6fb046c33e8cb89360
     }
 }
