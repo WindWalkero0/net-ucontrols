@@ -2,13 +2,19 @@
 using System.ComponentModel;
 using System.ComponentModel.Design;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
+using UControls.Helpers;
 
 namespace UControls.UControl
 {
     /// <summary>
     /// Class UControlBase.
+    /// Implements the <see cref="UserControl"/>
+    /// Implements the <see cref="IContainerControl"/>
     /// </summary>
+    /// <seealso cref="UserControl"/>
+    /// <seealso cref="IContainerControl"/>
     [Designer("System.Windows.Forms.Design.ParentControlDesigner, System.Design", typeof(IDesigner))]
     public partial class UControlBase : UserControl, IContainerControl
     {
@@ -50,10 +56,10 @@ namespace UControls.UControl
         public virtual bool IsRadius
         {
             get
-            { return this._isRadius; }
+            { return _isRadius; }
             set
             {
-                this._isRadius = value;
+                _isRadius = value;
                 Refresh();
             }
         }
@@ -67,11 +73,11 @@ namespace UControls.UControl
         {
             get
             {
-                return this._cornerRadius;
+                return _cornerRadius;
             }
             set
             {
-                this._cornerRadius = Math.Max(value, 1);
+                _cornerRadius = Math.Max(value, 1);
                 Refresh();
             }
         }
@@ -85,12 +91,174 @@ namespace UControls.UControl
         {
             get
             {
-                return this._isShowRect;
+                return _isShowRect;
             }
             set
             {
-                this._isShowRect = value;
+                _isShowRect = value;
                 Refresh();
+            }
+        }
+
+        /// <summary>
+        /// 边框颜色
+        /// </summary>
+        /// <value>the color of the rect.</value>
+        [Description("边框颜色"), Category("自定义")]
+        public virtual Color RectColor
+        {
+            get
+            {
+                return _rectColor;
+            }
+            set
+            {
+                _rectColor = value;
+                Refresh();
+            }
+        }
+
+        /// <summary>
+        /// 边框宽度
+        /// </summary>
+        /// <value>the width of the rect.</value>
+        [Description("边框宽度"), Category("自定义")]
+        public virtual int RectWidth
+        {
+            get
+            {
+                return _rectWidth;
+            }
+            set
+            {
+                _rectWidth = value;
+                Refresh();
+            }
+        }
+
+        /// <summary>
+        /// 当使用边框时填充颜色，当值为背景色或透明色或空值则不填充
+        /// </summary>
+        /// <value>the color of the fill.</value>
+        [Description("当使用边框时填充颜色，当值为背景色或透明色或空值则不填充"), Category("自定义")]
+        public virtual Color FillColor
+        {
+            get
+            {
+                return _fillColor;
+            }
+            set
+            {
+                _fillColor = value;
+                Refresh();
+            }
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="UControlBase"/> class.
+        /// </summary>
+        public UControlBase()
+        {
+            InitializeComponent();
+            SetStyle(ControlStyles.AllPaintingInWmPaint, true);
+            SetStyle(ControlStyles.OptimizedDoubleBuffer, true);
+            SetStyle(ControlStyles.ResizeRedraw, true);
+            SetStyle(ControlStyles.Selectable, true);
+            SetStyle(ControlStyles.SupportsTransparentBackColor, true);
+            SetStyle(ControlStyles.UserPaint, true);
+        }
+
+        /// <summary>
+        /// 引发 <see cref="System.Windows.Forms.Control.Paint"/> 事件
+        /// </summary>
+        /// <param name="e"></param>
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            if (Visible)
+            {
+                if (IsRadius)
+                {
+                    SetWindowRegion();
+                }
+                else
+                {
+                    // 关闭圆角后显示为原举行
+                    GraphicsPath gp = new GraphicsPath();
+                    gp.AddRectangle(ClientRectangle);
+                    gp.CloseFigure();
+                    Region = new Region(gp);
+                }
+
+                GraphicsPath graphicsPath = new GraphicsPath();
+                if (_isShowRect || (_fillColor != Color.Empty && _fillColor != Color.Transparent && _fillColor != BackColor))
+                {
+                    Rectangle clientRectangle = ClientRectangle;
+                    if (_isRadius)
+                    {
+                        graphicsPath.AddArc(0, 0, _cornerRadius, _cornerRadius, 180f, 90f);
+                        graphicsPath.AddArc(clientRectangle.Width - _cornerRadius - 1, 0, _cornerRadius, _cornerRadius, 270f, 90f);
+                        graphicsPath.AddArc(clientRectangle.Width - _cornerRadius - 1, clientRectangle.Height - _cornerRadius - 1, _cornerRadius, CornerRadius, 0f, 90f);
+                        graphicsPath.AddArc(0, clientRectangle.Height - _cornerRadius - 1, _cornerRadius, _cornerRadius, 90f, 90f);
+                        graphicsPath.CloseFigure();
+                    }
+                    else
+                    {
+                        graphicsPath.AddRectangle(clientRectangle);
+                    }
+                }
+                e.Graphics.SetGDIHigh();
+                if (_fillColor != Color.Empty && _fillColor != Color.Transparent && _fillColor != BackColor)
+                    e.Graphics.FillPath(new SolidBrush(_fillColor), graphicsPath);
+                if (_isShowRect)
+                {
+                    Color rectColor = _rectColor;
+                    Pen pen = new Pen(rectColor, _rectWidth);
+                    e.Graphics.DrawPath(pen, graphicsPath);
+                }
+            }
+            base.OnPaint(e);
+        }
+
+        private void SetWindowRegion()
+        {
+            GraphicsPath path;
+            Rectangle rect = new Rectangle(-1, -1, Width + 1, Height);
+            path = GetRoundedRectPath(rect, _cornerRadius);
+            Region = new Region(path);
+        }
+
+        /// <summary>
+        /// get the rounded rect path.
+        /// </summary>
+        /// <param name="rect">the rect.</param>
+        /// <param name="radius">the radius.</param>
+        /// <returns></returns>
+        private GraphicsPath GetRoundedRectPath(Rectangle rect, int radius)
+        {
+            Rectangle rect1 = new Rectangle(rect.Location, new Size(radius, radius));
+            GraphicsPath graphicsPath = new GraphicsPath();
+            graphicsPath.AddArc(rect1, 180f, 90f); // 左上角
+            rect1.X = rect.Right - radius;
+            graphicsPath.AddArc(rect1, 270f, 90f); //右上角
+            rect1.Y = rect.Bottom - radius;
+            rect1.Width += 1;
+            rect1.Height += 1;
+            graphicsPath.AddArc(rect1, 360f, 90f); // 右下角
+            rect1.X = rect.Left;
+            graphicsPath.AddArc(rect1, 90f, 90f); // 左下角
+            graphicsPath.CloseAllFigures();
+            return graphicsPath;
+        }
+
+        /// <summary>
+        /// Wnds the proc.
+        /// </summary>
+        /// <param name="m">要处理的 Windows <see cref="System.Windows.Forms.Message"/></param>
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg != 20)
+            {
+                base.WndProc(ref m);
             }
         }
     }
